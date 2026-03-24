@@ -142,6 +142,26 @@ export interface RemoveTemplateQuestionOptionRequest {
   id: string;
 }
 
+export interface UpdateTemplateQuestionRequest {
+  questionId: string;
+  code: string;
+  text: string;
+  answerType: TemplateAnswerType;
+  isRequired: boolean;
+  order: number;
+  options: UpdateTemplateQuestionRequestOption[];
+}
+
+export interface UpdateTemplateQuestionRequestOption {
+  optionId: string | null;
+  code: string;
+  label: string;
+  value: string | null;
+  order: number;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
 export interface ApplyTemplateRequest {
   projectId: number;
   templateId: string;

@@ -12,6 +12,8 @@ import {
   AddTemplateQuestionOptionRequest,
   TemplateStepDto,
   TemplateQuestionDto,
+  UpdateTemplateQuestionRequest,
+  UpdateTemplateQuestionRequestOption,
   ProjectWorkflowTemplateStepDto,
   ProjectWorkflowTemplateDto,
   TemplateDetailDto
@@ -236,7 +238,7 @@ export class TemplateBuilderPage {
   }
 
   editQuestion(question: TemplateQuestionDto, step: TemplateStepDto): void {
-    this.selectedStepId = step.id;
+    this.selectedStepId = step.id || step.templateStepId || this.selectedStepId;
     this.api
       .getTemplateQuestionOptions(question.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -253,6 +255,7 @@ export class TemplateBuilderPage {
     optionIdsToRemove: string[];
     editQuestionId: string | null;
     existingOptionIds: string[];
+    optionsSnapshot: UpdateTemplateQuestionRequestOption[];
   }): void {
     const templateId = this.getResolvedTemplateId();
     if (!templateId) return;
@@ -262,7 +265,7 @@ export class TemplateBuilderPage {
       return;
     }
 
-    this.syncQuestionOptions(event, templateId);
+    this.updateTemplateQuestion(event, templateId);
   }
 
   private createQuestionWithOptions(request: AddTemplateQuestionRequest, templateId: string): void {
@@ -285,49 +288,39 @@ export class TemplateBuilderPage {
       });
   }
 
-  private syncQuestionOptions(
+  private updateTemplateQuestion(
     event: {
       request: AddTemplateQuestionRequest;
       optionIdsToRemove: string[];
       editQuestionId: string | null;
       existingOptionIds: string[];
+      optionsSnapshot: UpdateTemplateQuestionRequestOption[];
     },
     templateId: string
   ): void {
-    const questionId = event.editQuestionId!;
-    const options = event.request.options ?? [];
+    const updatePayload: UpdateTemplateQuestionRequest = {
+      questionId: event.editQuestionId!,
+      code: event.request.code,
+      text: event.request.text,
+      answerType: event.request.answerType,
+      isRequired: event.request.isRequired,
+      order: event.request.order,
+      options:
+        event.request.answerType === 'Text'
+          ? []
+          : event.optionsSnapshot.map((opt) => ({
+              optionId: opt.optionId,
+              code: opt.code,
+              label: opt.label,
+              value: opt.value,
+              order: opt.order,
+              isDefault: opt.isDefault,
+              isActive: opt.isActive
+            }))
+    };
 
-    const upserts = options.map((option) => {
-      if (event.existingOptionIds.includes(option.templateQuestionId)) {
-        return this.api.updateTemplateQuestionOption({
-          id: option.templateQuestionId,
-          templateQuestionId: questionId,
-          code: option.code,
-          label: option.label,
-          value: option.value,
-          order: option.order,
-          isActive: option.isActive,
-          isDefault: option.isDefault
-        });
-      }
-
-      const addReq: AddTemplateQuestionOptionRequest = {
-        templateQuestionId: questionId,
-        code: option.code,
-        label: option.label,
-        value: option.value,
-        order: option.order,
-        isActive: option.isActive,
-        isDefault: option.isDefault
-      };
-      return this.api.addTemplateQuestionOption(addReq);
-    });
-
-    const removals = event.optionIdsToRemove.map((id) => this.api.removeTemplateQuestionOption({ id }));
-
-    const allOps = [...upserts, ...removals];
-
-    (allOps.length ? forkJoin(allOps) : of([]))
+    this.api
+      .updateTemplateQuestion(updatePayload)
       .pipe(switchMap(() => this.api.getTemplateById(templateId)), takeUntilDestroyed(this.destroyRef))
       .subscribe((x) => {
         this.template = x;

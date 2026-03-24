@@ -26,6 +26,7 @@ import {
   SaveProjectAnswerRequest,
   TemplateDetailDto,
   TemplateQuestionOptionDto,
+  UpdateTemplateQuestionRequest,
   UpdateTemplateQuestionOptionRequest,
   UpdateSubTaskStatusRequest,
   UpdateTaskStatusRequest
@@ -130,6 +131,10 @@ export class ProjectWorkflowApiService {
       payload,
       '4b1355d9-4f5a-4b7e-bfd1-9c1af55779ad'
     );
+  }
+
+  updateTemplateQuestion(payload: UpdateTemplateQuestionRequest): Observable<boolean> {
+    return this.postData<boolean>('UpdateTemplateQuestion', payload, true);
   }
 
   addTemplateQuestionOption(payload: AddTemplateQuestionOptionRequest): Observable<string> {

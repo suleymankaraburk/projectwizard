@@ -17,7 +17,8 @@ import {
   AddTemplateQuestionRequest,
   TemplateAnswerType,
   TemplateQuestionDto,
-  TemplateQuestionOptionDto
+  TemplateQuestionOptionDto,
+  UpdateTemplateQuestionRequestOption
 } from '../../../../core/models/project-workflow.models';
 
 @Component({
@@ -127,6 +128,7 @@ export class QuestionFormComponent {
     optionIdsToRemove: string[];
     editQuestionId: string | null;
     existingOptionIds: string[];
+    optionsSnapshot: UpdateTemplateQuestionRequestOption[];
   }>();
 
   errorMessage = '';
@@ -158,7 +160,7 @@ export class QuestionFormComponent {
 
     this.errorMessage = '';
     if (this.form.invalid || !this.stepId) {
-      this.errorMessage = 'Form alanlarini kontrol edin.';
+      this.errorMessage = !this.stepId ? 'Lutfen once bir step secin.' : 'Form alanlarini kontrol edin.';
       this.form.markAllAsTouched();
       return;
     }
@@ -215,7 +217,16 @@ export class QuestionFormComponent {
       request,
       optionIdsToRemove,
       editQuestionId: value.id || null,
-      existingOptionIds
+      existingOptionIds,
+      optionsSnapshot: rawOptions.map((x) => ({
+        optionId: x.id || null,
+        code: x.code.trim(),
+        label: x.label.trim(),
+        value: x.value?.trim() || null,
+        order: Number(x.order),
+        isDefault: x.isDefault,
+        isActive: true
+      }))
     });
 
     if (!this.editMode) {
