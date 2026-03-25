@@ -20,7 +20,10 @@ describe('ProjectCreatePage', () => {
 
     const fixture = TestBed.createComponent(ProjectCreatePage);
     const component = fixture.componentInstance;
-    component.form.patchValue({ companyId: 9, name: 'Pilot Proje' });
+    component.form.patchValue({
+      companyId: '11111111-1111-1111-1111-111111111111',
+      name: 'Pilot Proje'
+    });
     component.submit();
 
     expect(createProject).toHaveBeenCalled();

@@ -1,5 +1,6 @@
 export const environment = {
   production: true,
   apiBaseUrl: '/api/ProjectWorkflow',
-  useMockApi: false
+  useMockApi: false,
+  devBearerToken: null
 };

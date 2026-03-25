@@ -13,6 +13,9 @@ import { TemplateStepDto } from '../../../../core/models/project-workflow.models
       <mat-card-content>
         @for (q of step.questions; track q.id) {
           <p>{{ q.order }} - {{ q.text }} ({{ q.answerType }})</p>
+          @if (q.description) {
+            <p>{{ q.description }}</p>
+          }
         }
       </mat-card-content>
     </mat-card>

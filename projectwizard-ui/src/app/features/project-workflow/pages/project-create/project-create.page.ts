@@ -9,6 +9,8 @@ import { finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ProjectWorkflowApiService } from '../../services/project-workflow-api.service';
 
+const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 @Component({
   selector: 'app-project-create-page',
   standalone: true,
@@ -26,7 +28,7 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
         <form [formGroup]="form" class="grid-2" (ngSubmit)="submit()">
           <mat-form-field>
             <mat-label>Company Id</mat-label>
-            <input matInput type="number" formControlName="companyId" />
+            <input matInput formControlName="companyId" />
           </mat-form-field>
           <mat-form-field>
             <mat-label>Proje Adi</mat-label>
@@ -47,7 +49,7 @@ export class ProjectCreatePage {
   loading = false;
 
   readonly form = this.fb.nonNullable.group({
-    companyId: [1, [Validators.required, Validators.min(1)]],
+    companyId: ['11111111-1111-1111-1111-111111111111', [Validators.required, Validators.pattern(GUID_PATTERN)]],
     name: ['', [Validators.required, Validators.minLength(3)]]
   });
 

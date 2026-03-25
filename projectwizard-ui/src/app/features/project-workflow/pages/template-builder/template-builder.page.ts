@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -119,12 +119,14 @@ export class TemplateBuilderPage {
   private readonly api = inject(ProjectWorkflowApiService);
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
   templateId = '';
   isActiveFilter: boolean | null = true;
   templates: ProjectWorkflowTemplateDto[] = [];
   templateSteps: ProjectWorkflowTemplateStepDto[] = [];
   selectedStepId = '';
   editingQuestion: TemplateQuestionDto | null = null;
+  private currentEditingQuestionId: string | null = null;
   template: TemplateDetailDto | null = null;
 
   readonly templateForm = this.fb.nonNullable.group({
@@ -239,14 +241,24 @@ export class TemplateBuilderPage {
 
   editQuestion(question: TemplateQuestionDto, step: TemplateStepDto): void {
     this.selectedStepId = step.id || step.templateStepId || this.selectedStepId;
+    this.currentEditingQuestionId = question.id;
+    const templateQuestionId = question.templateQuestionId ?? question.id;
+    // Fill base question data immediately; options will be loaded async.
+    this.editingQuestion = {
+      ...question,
+      options: []
+    };
+    this.cdr.markForCheck();
     this.api
-      .getTemplateQuestionOptions(question.id)
+      .getTemplateQuestionOptions(String(templateQuestionId))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((options) => {
+        if (this.currentEditingQuestionId !== question.id) return;
         this.editingQuestion = {
           ...question,
           options
         };
+        this.cdr.markForCheck();
       });
   }
 
@@ -285,6 +297,7 @@ export class TemplateBuilderPage {
         this.template = x;
         this.templateId = x.templateId || x.id || templateId;
         this.editingQuestion = null;
+        this.currentEditingQuestionId = null;
       });
   }
 
@@ -302,6 +315,7 @@ export class TemplateBuilderPage {
       questionId: event.editQuestionId!,
       code: event.request.code,
       text: event.request.text,
+      description: event.request.description,
       answerType: event.request.answerType,
       isRequired: event.request.isRequired,
       order: event.request.order,
@@ -326,6 +340,7 @@ export class TemplateBuilderPage {
         this.template = x;
         this.templateId = x.templateId || x.id || templateId;
         this.editingQuestion = null;
+        this.currentEditingQuestionId = null;
       });
   }
 }

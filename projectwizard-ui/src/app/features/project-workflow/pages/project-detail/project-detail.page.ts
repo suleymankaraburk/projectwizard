@@ -65,7 +65,7 @@ export class ProjectDetailPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly fb = inject(FormBuilder);
-  projectId = 0;
+  projectId = '';
   projectName = '';
   questions: ProjectQuestionDto[] = [];
 
@@ -77,7 +77,12 @@ export class ProjectDetailPage {
     this.route.paramMap
       .pipe(
         switchMap((params) => {
-          this.projectId = Number(params.get('id') ?? '0');
+          this.projectId = String(params.get('id') ?? '').trim();
+          if (!this.projectId) {
+            this.projectName = 'Gecersiz Proje';
+            this.questions = [];
+            return [];
+          }
           return this.api.getProjectById(this.projectId);
         }),
         takeUntilDestroyed(this.destroyRef)

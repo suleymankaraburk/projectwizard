@@ -9,15 +9,16 @@ export type TaskStatus = 'Todo' | 'InProgress' | 'Done';
 export type ActionType = 'OpenUrl' | 'ShowMappedData' | null;
 
 export interface ProjectSummaryDto {
-  projectId: number;
-  companyId: number;
+  projectId: string;
+  companyId: string;
   name: string;
   status: ProjectStatus;
   completionPercent: number;
+  templateId?: string | null;
 }
 
 export interface CreateProjectRequest {
-  companyId: number;
+  companyId: string;
   name: string;
 }
 
@@ -69,6 +70,7 @@ export interface AddTemplateQuestionRequest {
   stepId: string;
   code: string;
   text: string;
+  description: string;
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
@@ -77,9 +79,10 @@ export interface AddTemplateQuestionRequest {
 
 export interface TemplateQuestionDto {
   id: string;
-  templateQuestionId?: number;
+  templateQuestionId?: string | null;
   code: string;
   text: string;
+  description?: string | null;
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
@@ -146,6 +149,7 @@ export interface UpdateTemplateQuestionRequest {
   questionId: string;
   code: string;
   text: string;
+  description: string;
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
@@ -163,12 +167,12 @@ export interface UpdateTemplateQuestionRequestOption {
 }
 
 export interface ApplyTemplateRequest {
-  projectId: number;
+  projectId: string;
   templateId: string;
 }
 
 export interface AddProjectQuestionRequest {
-  projectId: number;
+  projectId: string;
   text: string;
   answerType: string;
   required: boolean;
@@ -185,7 +189,7 @@ export interface SaveProjectAnswerRequest {
 }
 
 export interface RebuildTasksRequest {
-  projectId: number;
+  projectId: string;
 }
 
 export interface ProjectQuestionDto {

@@ -18,7 +18,7 @@ describe('ProjectWorkflowApiService', () => {
   afterEach(() => httpMock.verify());
 
   it('should fetch projects list', () => {
-    service.getProjects(3).subscribe((data) => {
+    service.getProjects().subscribe((data) => {
       expect(Array.isArray(data)).toBe(true);
     });
   });

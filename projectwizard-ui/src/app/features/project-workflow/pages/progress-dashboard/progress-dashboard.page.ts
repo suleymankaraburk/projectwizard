@@ -41,7 +41,7 @@ export class ProgressDashboardPage {
   constructor() {
     this.route.paramMap
       .pipe(
-        switchMap((params) => this.api.getProjectProgress(Number(params.get('projectId') ?? '0'))),
+        switchMap((params) => this.api.getProjectProgress(String(params.get('projectId') ?? '').trim())),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((x) => (this.progress = x));

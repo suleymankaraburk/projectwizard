@@ -32,14 +32,14 @@ export class TaskBoardPage {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(ProjectWorkflowApiService);
   private readonly destroyRef = inject(DestroyRef);
-  projectId = 0;
+  projectId = '';
   tasks: ProjectTaskDto[] = [];
 
   constructor() {
     this.route.paramMap
       .pipe(
         switchMap((params) => {
-          this.projectId = Number(params.get('projectId') ?? '0');
+          this.projectId = String(params.get('projectId') ?? '').trim();
           return this.api.getProjectTasks(this.projectId);
         }),
         takeUntilDestroyed(this.destroyRef)

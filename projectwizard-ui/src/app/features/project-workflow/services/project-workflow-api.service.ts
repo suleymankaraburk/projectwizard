@@ -38,26 +38,52 @@ export class ProjectWorkflowApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getProjects(companyId: number): Observable<ProjectSummaryDto[]> {
+  getProjects(): Observable<ProjectSummaryDto[]> {
     if (environment.useMockApi) {
       return of(MOCK_PROJECTS).pipe(delay(300));
     }
-    const params = new HttpParams().set('companyId', companyId);
+    const params = new HttpParams();
     return this.http
       .get<ApiEnvelope<ProjectSummaryDto[]>>(`${this.baseUrl}/GetProjects`, { params })
-      .pipe(map((x) => x.data));
+      .pipe(
+        map((x) => {
+          const data: unknown = x.data;
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray((data as any)?.items)
+              ? (data as any).items
+              : [];
+
+          return (list as any[]).map((p) => ({
+            projectId: String(p.projectId ?? p.projectID ?? p.id),
+            companyId: p.companyId ?? p.companyID ?? p.companyGuid ?? p.companyGUID,
+            name: p.name ?? p.projectName,
+            status: p.status,
+            completionPercent: p.completionPercent ?? p.completionPercentage ?? p.progress ?? 0,
+            templateId:
+              p.templateId ??
+              p.templateID ??
+              p.templateGuid ??
+              p.templateGUID ??
+              p.appliedTemplateId ??
+              p.appliedTemplateID ??
+              p.currentTemplateId ??
+              null
+          })) as ProjectSummaryDto[];
+        })
+      );
   }
 
-  createProject(payload: CreateProjectRequest): Observable<number> {
+  createProject(payload: CreateProjectRequest): Observable<string> {
     if (environment.useMockApi) {
-      return of(Math.floor(Math.random() * 1000) + 100).pipe(delay(300));
+      return of(crypto.randomUUID()).pipe(delay(300));
     }
     return this.http
-      .post<ApiEnvelope<number>>(`${this.baseUrl}/CreateProject`, payload)
+      .post<ApiEnvelope<string>>(`${this.baseUrl}/CreateProject`, payload)
       .pipe(map((x) => x.data));
   }
 
-  getProjectById(projectId: number): Observable<ProjectDetailDto> {
+  getProjectById(projectId: string): Observable<ProjectDetailDto> {
     if (environment.useMockApi) {
       return of(MOCK_PROJECT_DETAIL(projectId)).pipe(delay(300));
     }
@@ -201,7 +227,7 @@ export class ProjectWorkflowApiService {
     return this.postData<boolean>('RebuildTasksFromAnswers', payload, true);
   }
 
-  getProjectTasks(projectId: number): Observable<ProjectTaskDto[]> {
+  getProjectTasks(projectId: string): Observable<ProjectTaskDto[]> {
     if (environment.useMockApi) {
       return of(MOCK_TASKS).pipe(delay(400));
     }
@@ -219,7 +245,7 @@ export class ProjectWorkflowApiService {
     return this.postData<boolean>('UpdateSubTaskStatus', payload, true);
   }
 
-  getProjectProgress(projectId: number): Observable<ProjectProgressDto> {
+  getProjectProgress(projectId: string): Observable<ProjectProgressDto> {
     if (environment.useMockApi) {
       return of(MOCK_PROGRESS).pipe(delay(250));
     }
@@ -249,13 +275,25 @@ export class ProjectWorkflowApiService {
 }
 
 const MOCK_PROJECTS: ProjectSummaryDto[] = [
-  { projectId: 1, companyId: 1, name: 'ERP Gecis', status: 'InProgress', completionPercent: 46 },
-  { projectId: 2, companyId: 1, name: 'Onboarding Revizyon', status: 'Draft', completionPercent: 12 }
+  {
+    projectId: '42110c71-9ba8-4291-a052-827af590382c',
+    companyId: '11111111-1111-1111-1111-111111111111',
+    name: 'ERP Gecis',
+    status: 'InProgress',
+    completionPercent: 46
+  },
+  {
+    projectId: '9d9fdd7b-b7b2-4d3a-9f30-2e6a0a2b7e7b',
+    companyId: '11111111-1111-1111-1111-111111111111',
+    name: 'Onboarding Revizyon',
+    status: 'Draft',
+    completionPercent: 12
+  }
 ];
 
-const MOCK_PROJECT_DETAIL = (id: number): ProjectDetailDto => ({
+const MOCK_PROJECT_DETAIL = (id: string): ProjectDetailDto => ({
   projectId: id,
-  companyId: 1,
+  companyId: '11111111-1111-1111-1111-111111111111',
   name: `Proje ${id}`,
   status: 'InProgress',
   completionPercent: 46,

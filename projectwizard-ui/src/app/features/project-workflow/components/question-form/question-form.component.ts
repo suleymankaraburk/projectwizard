@@ -42,6 +42,10 @@ import {
         <mat-label>Soru</mat-label>
         <input matInput formControlName="text" />
       </mat-form-field>
+      <mat-form-field class="full-width">
+        <mat-label>Aciklama</mat-label>
+        <textarea matInput formControlName="description" rows="2"></textarea>
+      </mat-form-field>
       <mat-form-field>
         <mat-label>Answer Type</mat-label>
         <mat-select formControlName="answerType">
@@ -88,6 +92,7 @@ import {
   `,
   styles: [
     '.options-wrap{grid-column:1/-1;}',
+    '.full-width{grid-column:1/-1;}',
     '.option-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.5rem;align-items:center;}',
     '.header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}',
     '.error{color:#b00020;grid-column:1/-1;}'
@@ -111,6 +116,7 @@ export class QuestionFormComponent {
       id: value.id,
       code: value.code,
       text: value.text,
+      description: value.description ?? '',
       answerType: value.answerType,
       isRequired: value.isRequired,
       order: value.order
@@ -137,6 +143,7 @@ export class QuestionFormComponent {
     id: [''],
     code: ['Q-001', Validators.required],
     text: ['', Validators.required],
+    description: [''],
     answerType: ['Text' as TemplateAnswerType, Validators.required],
     isRequired: [true],
     order: [1, [Validators.required, Validators.min(1)]],
@@ -193,6 +200,7 @@ export class QuestionFormComponent {
       stepId: this.stepId,
       code: value.code.trim(),
       text: value.text.trim(),
+      description: value.description.trim(),
       answerType: value.answerType,
       isRequired: value.isRequired,
       order: Number(value.order),
@@ -312,6 +320,7 @@ export class QuestionFormComponent {
       id: '',
       code: 'Q-001',
       text: '',
+      description: '',
       answerType: 'Text',
       isRequired: true,
       order: 1
