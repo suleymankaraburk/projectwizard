@@ -315,9 +315,23 @@ export class TemplateBuilderPage {
     this.api
       .addTemplateQuestion({ ...request, options: [] })
       .pipe(
-        switchMap((questionId) => {
+        switchMap((created) => {
+          const resolvedQuestionId =
+            typeof created === 'string'
+              ? created
+              : String(
+                  (created as any)?.id ??
+                    (created as any)?.questionId ??
+                    (created as any)?.templateQuestionId ??
+                    ''
+                );
+
+          if (!resolvedQuestionId) {
+            throw new Error('AddTemplateQuestion did not return a question id.');
+          }
+
           const optionCalls = (request.options ?? []).map((opt) =>
-            this.api.addTemplateQuestionOption({ ...opt, templateQuestionId: questionId })
+            this.api.addTemplateQuestionOption({ ...opt, templateQuestionId: resolvedQuestionId })
           );
           return optionCalls.length ? forkJoin(optionCalls) : of([]);
         }),

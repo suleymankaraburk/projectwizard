@@ -30,7 +30,55 @@ export interface CreateProjectRequest {
   name: string;
 }
 
-export interface ProjectDetailDto extends ProjectSummaryDto {
+export interface ProjectStepLiteDto {
+  id: string;
+  title: string;
+  order: number;
+}
+
+export interface ProjectQuestionOptionDto {
+  id: string;
+  projectQuestionId: string;
+  templateOptionId?: string | null;
+  code: string;
+  label: string;
+  value?: string | null;
+  order: number;
+  isActive: boolean;
+}
+
+export interface ProjectQuestionDto {
+  id: string;
+  projectId: string;
+  stepId: string;
+  text: string;
+  url?: string | null;
+  categoryCode?: string | null;
+  methodCode?: string | null;
+  answerType: string;
+  isRequired: boolean;
+  isCustom: boolean;
+  isActive: boolean;
+  options: ProjectQuestionOptionDto[];
+  answers?: ProjectQuestionAnswerDto[];
+}
+
+export interface ProjectQuestionAnswerDto {
+  id: string;
+  projectQuestionId: string;
+  answerType: string;
+  valueJson: string;
+  answeredByUserId?: string | null;
+  answeredAt?: string | null;
+}
+
+export interface ProjectDetailDto {
+  id: string;
+  templateId: string;
+  name: string;
+  status: ProjectStatus;
+  progress: number;
+  steps: ProjectStepLiteDto[];
   questions: ProjectQuestionDto[];
 }
 
@@ -197,26 +245,17 @@ export interface AddProjectQuestionRequest {
 }
 
 export interface RemoveProjectQuestionRequest {
-  projectQuestionId: number;
+  projectQuestionId: string;
 }
 
 export interface SaveProjectAnswerRequest {
-  projectQuestionId: number;
-  answer: string;
+  projectQuestionId: string;
+  answerType: string;
+  valueJson: string;
 }
 
 export interface RebuildTasksRequest {
   projectId: string;
-}
-
-export interface ProjectQuestionDto {
-  projectQuestionId: number;
-  text: string;
-  answerType: string;
-  required: boolean;
-  order: number;
-  isCustom: boolean;
-  answer?: string | null;
 }
 
 export interface ProjectTaskDto {

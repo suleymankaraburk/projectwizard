@@ -314,20 +314,24 @@ const MOCK_PROJECTS: ProjectSummaryDto[] = [
 ];
 
 const MOCK_PROJECT_DETAIL = (id: string): ProjectDetailDto => ({
-  projectId: id,
-  companyId: '11111111-1111-1111-1111-111111111111',
+  id,
+  templateId: '11111111-1111-1111-1111-111111111111',
   name: `Proje ${id}`,
   status: 'InProgress',
-  completionPercent: 46,
+  progress: 46,
+  steps: [{ id: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc', title: 'Kesif', order: 1 }],
   questions: [
     {
-      projectQuestionId: 1,
+      id: '775f487f-f4ae-436e-bd72-00ef8fd83d98',
+      projectId: id,
+      stepId: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc',
       text: 'Musteri sistemi hangi ERP versiyonunda?',
+      url: null,
       answerType: 'Text',
-      required: true,
-      order: 1,
+      isRequired: true,
       isCustom: false,
-      answer: 'v11'
+      isActive: true,
+      options: []
     }
   ]
 });
