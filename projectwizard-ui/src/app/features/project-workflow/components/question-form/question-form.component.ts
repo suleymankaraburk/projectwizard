@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, Input, Output, inject } from '@angular/core';
 import {
   AbstractControl,
   FormArray,
@@ -13,8 +13,11 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { distinctUntilChanged } from 'rxjs';
 import {
   AddTemplateQuestionRequest,
+  EmissionCategoryMethodDto,
   TemplateAnswerType,
   TemplateQuestionDto,
   TemplateQuestionOptionDto,
@@ -46,6 +49,30 @@ import {
         <mat-label>Aciklama</mat-label>
         <textarea matInput formControlName="description" rows="2"></textarea>
       </mat-form-field>
+      @if (mode === 'template') {
+        <mat-form-field class="full-width">
+          <mat-label>Url</mat-label>
+          <input matInput formControlName="url" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Category Code</mat-label>
+          <mat-select formControlName="categoryCode">
+            <mat-option [value]="''">Seciniz</mat-option>
+            @for (c of categoryOptions; track c.categoryCode) {
+              <mat-option [value]="c.categoryCode">{{ c.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Method Code</mat-label>
+          <mat-select formControlName="methodCode" [disabled]="!form.controls.categoryCode.value">
+            <mat-option [value]="''">Seciniz</mat-option>
+            @for (m of getMethodOptions(form.controls.categoryCode.value); track m.methodCode) {
+              <mat-option [value]="m.methodCode">{{ m.methodNameTR || m.methodNameEN || m.methodCode }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
       <mat-form-field>
         <mat-label>Answer Type</mat-label>
         <mat-select formControlName="answerType">
@@ -101,6 +128,9 @@ import {
 })
 export class QuestionFormComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+
+  @Input() emissionCategoryMethods: EmissionCategoryMethodDto[] = [];
 
   @Input() mode: 'project' | 'template' = 'project';
   @Input() stepId = '';
@@ -117,6 +147,9 @@ export class QuestionFormComponent {
       code: value.code,
       text: value.text,
       description: value.description ?? '',
+      url: value.url ?? '',
+      categoryCode: value.categoryCode ?? '',
+      methodCode: value.methodCode ?? '',
       answerType: value.answerType,
       isRequired: value.isRequired,
       order: value.order
@@ -144,11 +177,27 @@ export class QuestionFormComponent {
     code: ['Q-001', Validators.required],
     text: ['', Validators.required],
     description: [''],
+    url: [''],
+    categoryCode: [''],
+    methodCode: [''],
     answerType: ['Text' as TemplateAnswerType, Validators.required],
     isRequired: [true],
     order: [1, [Validators.required, Validators.min(1)]],
     options: this.fb.array([], [this.optionsValidator()])
   });
+
+  constructor() {
+    this.form.controls.categoryCode.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((categoryCode) => {
+        const category = String(categoryCode ?? '');
+        const currentMethod = this.form.controls.methodCode.value;
+        const valid = this.getMethodOptions(category).some((m) => m.methodCode === currentMethod);
+        if (!valid) {
+          this.form.controls.methodCode.setValue('');
+        }
+      });
+  }
 
   submit(): void {
     if (this.mode === 'project') {
@@ -201,6 +250,9 @@ export class QuestionFormComponent {
       code: value.code.trim(),
       text: value.text.trim(),
       description: value.description.trim(),
+      url: value.url?.trim() || null,
+      categoryCode: value.categoryCode?.trim() || null,
+      methodCode: value.methodCode?.trim() || null,
       answerType: value.answerType,
       isRequired: value.isRequired,
       order: Number(value.order),
@@ -321,10 +373,36 @@ export class QuestionFormComponent {
       code: 'Q-001',
       text: '',
       description: '',
+      url: '',
+      categoryCode: '',
+      methodCode: '',
       answerType: 'Text',
       isRequired: true,
       order: 1
     });
     this.options.clear();
+  }
+
+  get categoryOptions(): Array<{ categoryCode: string; label: string }> {
+    const map = new Map<string, string>();
+    for (const row of this.emissionCategoryMethods ?? []) {
+      if (!row?.categoryCode) continue;
+      map.set(row.categoryCode, row.categoryName || row.categoryCode);
+    }
+    return Array.from(map.entries())
+      .map(([categoryCode, label]) => ({ categoryCode, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  getMethodOptions(categoryCode: string): EmissionCategoryMethodDto[] {
+    const code = (categoryCode ?? '').trim();
+    if (!code) return [];
+    return (this.emissionCategoryMethods ?? [])
+      .filter((x) => (x.categoryCode ?? '').trim() === code)
+      .sort((a, b) =>
+        (a.methodNameTR || a.methodNameEN || a.methodCode).localeCompare(
+          b.methodNameTR || b.methodNameEN || b.methodCode
+        )
+      );
   }
 }

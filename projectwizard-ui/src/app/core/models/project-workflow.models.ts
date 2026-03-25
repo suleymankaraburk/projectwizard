@@ -8,6 +8,14 @@ export type ProjectStatus = 'Draft' | 'InProgress' | 'Completed';
 export type TaskStatus = 'Todo' | 'InProgress' | 'Done';
 export type ActionType = 'OpenUrl' | 'ShowMappedData' | null;
 
+export interface EmissionCategoryMethodDto {
+  categoryCode: string;
+  categoryName?: string | null;
+  methodCode: string;
+  methodNameTR?: string | null;
+  methodNameEN?: string | null;
+}
+
 export interface ProjectSummaryDto {
   projectId: string;
   companyId: string;
@@ -71,6 +79,9 @@ export interface AddTemplateQuestionRequest {
   code: string;
   text: string;
   description: string;
+  url?: string | null;
+  categoryCode?: string | null;
+  methodCode?: string | null;
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
@@ -83,6 +94,9 @@ export interface TemplateQuestionDto {
   code: string;
   text: string;
   description?: string | null;
+  url?: string | null;
+  categoryCode?: string | null;
+  methodCode?: string | null;
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
@@ -150,6 +164,9 @@ export interface UpdateTemplateQuestionRequest {
   code: string;
   text: string;
   description: string;
+  url?: string | null;
+  categoryCode?: string | null;
+  methodCode?: string | null;
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;

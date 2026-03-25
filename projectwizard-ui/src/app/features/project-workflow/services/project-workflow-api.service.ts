@@ -13,6 +13,7 @@ import {
   CreateProjectRequest,
   CreateTemplateRequest,
   CreateTemplateResultDto,
+  EmissionCategoryMethodDto,
   ProjectDetailDto,
   ProjectProgressDto,
   ProjectQuestionDto,
@@ -205,6 +206,27 @@ export class ProjectWorkflowApiService {
     return this.http
       .get<ApiEnvelope<TemplateDetailDto>>(`${this.baseUrl}/GetTemplateById`, { params })
       .pipe(map((x) => this.normalizeTemplateDetail(x.data)));
+  }
+
+  getEmissionCategoryMethods(): Observable<EmissionCategoryMethodDto[]> {
+    if (environment.useMockApi) {
+      return of([]).pipe(delay(200));
+    }
+    return this.http
+      .get<unknown>(`${environment.emissionApiBaseUrl}/GetEmissionCategoryMethods`)
+      .pipe(
+        map((res) => {
+          const raw = Array.isArray(res) ? res : (res as any)?.data;
+          const list = Array.isArray(raw) ? raw : [];
+          return list.map((x: any) => ({
+            categoryCode: String(x.categoryCode ?? ''),
+            categoryName: x.categoryName ?? null,
+            methodCode: String(x.methodCode ?? ''),
+            methodNameTR: x.methodNameTR ?? null,
+            methodNameEN: x.methodNameEN ?? null
+          })) as EmissionCategoryMethodDto[];
+        })
+      );
   }
 
   applyTemplateToProject(payload: ApplyTemplateRequest): Observable<boolean> {

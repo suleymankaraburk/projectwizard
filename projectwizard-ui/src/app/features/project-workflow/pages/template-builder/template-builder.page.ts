@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AddTemplateQuestionRequest,
   AddTemplateQuestionOptionRequest,
+  EmissionCategoryMethodDto,
   TemplateStepDto,
   TemplateQuestionDto,
   UpdateTemplateQuestionRequest,
@@ -98,6 +99,7 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
           mode="template"
           [stepId]="selectedStepId"
           [question]="editingQuestion"
+          [emissionCategoryMethods]="emissionCategoryMethods"
           [editMode]="editingQuestion !== null"
           (submitTemplateQuestion)="upsertQuestion($event)" />
       </mat-card-content>
@@ -128,6 +130,7 @@ export class TemplateBuilderPage {
   editingQuestion: TemplateQuestionDto | null = null;
   private currentEditingQuestionId: string | null = null;
   template: TemplateDetailDto | null = null;
+  emissionCategoryMethods: EmissionCategoryMethodDto[] = [];
 
   readonly templateForm = this.fb.nonNullable.group({
     name: ['Standart', Validators.required]
@@ -137,6 +140,17 @@ export class TemplateBuilderPage {
   });
   constructor() {
     this.loadTemplates(this.isActiveFilter);
+    this.loadEmissionCategoryMethods();
+  }
+
+  private loadEmissionCategoryMethods(): void {
+    this.api
+      .getEmissionCategoryMethods()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((items) => {
+        this.emissionCategoryMethods = items ?? [];
+        this.cdr.markForCheck();
+      });
   }
 
   createTemplate(): void {
@@ -316,6 +330,9 @@ export class TemplateBuilderPage {
       code: event.request.code,
       text: event.request.text,
       description: event.request.description,
+      url: event.request.url ?? null,
+      categoryCode: event.request.categoryCode ?? null,
+      methodCode: event.request.methodCode ?? null,
       answerType: event.request.answerType,
       isRequired: event.request.isRequired,
       order: event.request.order,
