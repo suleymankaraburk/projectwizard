@@ -112,14 +112,20 @@ import {
         <p class="error">{{ errorMessage }}</p>
       }
 
-      <button mat-raised-button color="primary" type="submit">
-        {{ editMode ? 'Soruyu Guncelle' : 'Soru Ekle' }}
-      </button>
+      <div class="actions">
+        <button mat-raised-button color="primary" type="submit">
+          {{ editMode ? 'Soruyu Guncelle' : 'Soru Ekle' }}
+        </button>
+        @if (editMode) {
+          <button mat-button type="button" (click)="cancelEdit()">Iptal</button>
+        }
+      </div>
     </form>
   `,
   styles: [
     '.options-wrap{grid-column:1/-1;}',
     '.full-width{grid-column:1/-1;}',
+    '.actions{grid-column:1/-1;display:flex;gap:.5rem;align-items:center;}',
     '.option-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.5rem;align-items:center;}',
     '.header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}',
     '.error{color:#b00020;grid-column:1/-1;}'
@@ -169,6 +175,7 @@ export class QuestionFormComponent {
     existingOptionIds: string[];
     optionsSnapshot: UpdateTemplateQuestionRequestOption[];
   }>();
+  @Output() readonly cancelTemplateEdit = new EventEmitter<void>();
 
   errorMessage = '';
 
@@ -192,7 +199,10 @@ export class QuestionFormComponent {
       .subscribe((categoryCode) => {
         const category = String(categoryCode ?? '');
         const currentMethod = this.form.controls.methodCode.value;
-        const valid = this.getMethodOptions(category).some((m) => m.methodCode === currentMethod);
+        const options = this.getMethodOptions(category);
+        // If options aren't loaded yet (or category has no methods), don't clear user/edit values.
+        if (!options.length) return;
+        const valid = options.some((m) => m.methodCode === currentMethod);
         if (!valid) {
           this.form.controls.methodCode.setValue('');
         }
@@ -381,6 +391,11 @@ export class QuestionFormComponent {
       order: 1
     });
     this.options.clear();
+  }
+
+  cancelEdit(): void {
+    this.resetForCreate();
+    this.cancelTemplateEdit.emit();
   }
 
   get categoryOptions(): Array<{ categoryCode: string; label: string }> {

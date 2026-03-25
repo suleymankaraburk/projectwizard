@@ -101,6 +101,7 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
           [question]="editingQuestion"
           [emissionCategoryMethods]="emissionCategoryMethods"
           [editMode]="editingQuestion !== null"
+          (cancelTemplateEdit)="cancelEditing()"
           (submitTemplateQuestion)="upsertQuestion($event)" />
       </mat-card-content>
     </mat-card>
@@ -108,13 +109,23 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
     @for (step of template?.steps ?? []; track step.templateStepId) {
       <app-step-card [step]="step" />
       @for (q of step.questions; track q.id) {
-        <div class="question-actions">
-          <button mat-button color="primary" (click)="editQuestion(q, step)">Duzenle</button>
+        <div class="question-row">
+          <div class="question-meta">
+            <div class="question-title">{{ q.order }} - {{ q.text }}</div>
+            <div class="question-sub">{{ q.answerType }}</div>
+          </div>
+          <button mat-stroked-button color="primary" (click)="editQuestion(q, step)">Duzenle</button>
         </div>
       }
     }
   `,
-  styles: ['mat-card{margin-bottom:1rem}', '.question-actions{margin-bottom:1rem;}'],
+  styles: [
+    'mat-card{margin-bottom:1rem}',
+    '.question-row{display:flex;gap:1rem;align-items:center;justify-content:space-between;margin:0 0 1rem 0;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.08);border-radius:.5rem;}',
+    '.question-meta{display:flex;flex-direction:column;gap:.125rem;min-width:0;}',
+    '.question-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+    '.question-sub{font-size:.85rem;opacity:.75;}'
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TemplateBuilderPage {
@@ -292,6 +303,12 @@ export class TemplateBuilderPage {
     }
 
     this.updateTemplateQuestion(event, templateId);
+  }
+
+  cancelEditing(): void {
+    this.editingQuestion = null;
+    this.currentEditingQuestionId = null;
+    this.cdr.markForCheck();
   }
 
   private createQuestionWithOptions(request: AddTemplateQuestionRequest, templateId: string): void {
