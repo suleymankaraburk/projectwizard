@@ -6,8 +6,7 @@ export class I18nService {
     Draft: 'Taslak',
     InProgress: 'Devam Ediyor',
     Completed: 'Tamamlandi',
-    Todo: 'Yapilacak',
-    Done: 'Tamamlandi'
+    Todo: 'Yapilacak'
   };
 
   t(key: string): string {

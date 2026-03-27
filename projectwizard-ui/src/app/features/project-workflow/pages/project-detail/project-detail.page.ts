@@ -67,6 +67,15 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
                 </mat-radio-button>
               }
             </mat-radio-group>
+            @if (shouldShowCustomAnswer(q)) {
+              <mat-form-field class="full">
+                <mat-label>Custom Answer</mat-label>
+                <input
+                  matInput
+                  [value]="customAnswerByQuestionId[q.id] || ''"
+                  (input)="setCustomAnswer(q.id, $any($event.target).value)" />
+              </mat-form-field>
+            }
             <button mat-button color="primary" (click)="saveSelectAnswer(q)">Kaydet</button>
           } @else {
             <div class="options-list">
@@ -80,6 +89,15 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
                 </div>
               }
             </div>
+            @if (shouldShowCustomAnswer(q)) {
+              <mat-form-field class="full">
+                <mat-label>Custom Answer</mat-label>
+                <input
+                  matInput
+                  [value]="customAnswerByQuestionId[q.id] || ''"
+                  (input)="setCustomAnswer(q.id, $any($event.target).value)" />
+              </mat-form-field>
+            }
             <button mat-button color="primary" (click)="saveSelectAnswer(q)">Kaydet</button>
           }
           @if (q.isCustom) {
@@ -110,6 +128,7 @@ export class ProjectDetailPage {
   textAnswerByQuestionId: Record<string, string> = {};
   singleSelectedOptionIdByQuestionId: Record<string, string> = {};
   multiSelectedOptionIdsByQuestionId: Record<string, Set<string>> = {};
+  customAnswerByQuestionId: Record<string, string> = {};
 
   readonly applyForm = this.fb.nonNullable.group({
     templateId: ['11111111-1111-1111-1111-111111111111', [Validators.required]]
@@ -217,6 +236,28 @@ export class ProjectDetailPage {
     this.multiSelectedOptionIdsByQuestionId[questionId] = set;
   }
 
+  setCustomAnswer(questionId: string, value: string): void {
+    this.customAnswerByQuestionId[questionId] = value ?? '';
+  }
+
+  shouldShowCustomAnswer(question: ProjectQuestionDto): boolean {
+    if (question.answerType === 'SingleSelect') {
+      const selectedId = this.singleSelectedOptionIdByQuestionId[question.id];
+      if (!selectedId) return false;
+      const selected = question.options.find((o) => o.id === selectedId);
+      return this.isOtherOption(selected?.label, selected?.code);
+    }
+
+    if (question.answerType === 'MultiSelect') {
+      const selectedSet = this.multiSelectedOptionIdsByQuestionId[question.id] ?? new Set<string>();
+      return question.options.some(
+        (o) => selectedSet.has(o.id) && this.isOtherOption(o.label, o.code)
+      );
+    }
+
+    return false;
+  }
+
   saveTextAnswer(question: ProjectQuestionDto): void {
     const value = this.textAnswerByQuestionId[question.id] ?? '';
     this.saveAnswerPayload(
@@ -249,7 +290,10 @@ export class ProjectDetailPage {
           categoryCode: question.categoryCode ?? null,
           url: question.url ?? null,
           options: (question.options ?? []).map((o) => ({ optionId: o.id, code: o.code, label: o.label })),
-          selectedOptions: selected
+          selectedOptions: selected,
+          customAnswer: this.shouldShowCustomAnswer(question)
+            ? (this.customAnswerByQuestionId[question.id] ?? '').trim()
+            : null
         })
       );
       return;
@@ -268,7 +312,10 @@ export class ProjectDetailPage {
         categoryCode: question.categoryCode ?? null,
         url: question.url ?? null,
         options: (question.options ?? []).map((o) => ({ optionId: o.id, code: o.code, label: o.label })),
-        selectedOptions: selected
+        selectedOptions: selected,
+        customAnswer: this.shouldShowCustomAnswer(question)
+          ? (this.customAnswerByQuestionId[question.id] ?? '').trim()
+          : null
       })
     );
   }
@@ -312,6 +359,11 @@ export class ProjectDetailPage {
         continue;
       }
 
+      const parsedCustomAnswer = parsed?.customAnswer;
+      if (typeof parsedCustomAnswer === 'string') {
+        this.customAnswerByQuestionId[q.id] = parsedCustomAnswer;
+      }
+
       // Prefer selectedOptions array (your format)
       const selectedOptions = Array.isArray(parsed?.selectedOptions) ? parsed.selectedOptions : null;
       if (selectedOptions) {
@@ -336,5 +388,11 @@ export class ProjectDetailPage {
         if (normalized.length) this.multiSelectedOptionIdsByQuestionId[q.id] = new Set(normalized);
       }
     }
+  }
+
+  private isOtherOption(label?: string | null, code?: string | null): boolean {
+    const l = (label ?? '').trim().toLowerCase();
+    const c = (code ?? '').trim().toLowerCase();
+    return l === 'other' || l === 'diğer' || c === 'other' || c === 'diger';
   }
 }

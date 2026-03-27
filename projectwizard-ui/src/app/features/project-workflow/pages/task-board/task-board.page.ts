@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { switchMap } from 'rxjs';
@@ -32,6 +32,7 @@ export class TaskBoardPage {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(ProjectWorkflowApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
   projectId = '';
   tasks: ProjectTaskDto[] = [];
 
@@ -44,26 +45,37 @@ export class TaskBoardPage {
         }),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe((tasks) => (this.tasks = tasks));
+      .subscribe((tasks) => {
+        this.tasks = tasks;
+        this.cdr.markForCheck();
+      });
   }
 
   rebuild(): void {
     this.api
       .rebuildTasksFromAnswers({ projectId: this.projectId })
       .pipe(switchMap(() => this.api.getProjectTasks(this.projectId)), takeUntilDestroyed(this.destroyRef))
-      .subscribe((tasks) => (this.tasks = tasks));
-  }
-
-  updateTask(taskId: number, status: TaskStatus): void {
-    this.api
-      .updateTaskStatus({ taskId, status })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.tasks = this.tasks.map((t) => (t.taskId === taskId ? { ...t, status } : t));
+      .subscribe((tasks) => {
+        this.tasks = tasks;
+        this.cdr.markForCheck();
       });
   }
 
-  updateSubTask(subTaskId: number, status: TaskStatus): void {
+  updateTask(taskId: string, status: TaskStatus): void {
+    this.api
+      .updateTaskStatus({
+        projectId: this.projectId,
+        taskId,
+        status
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.tasks = this.tasks.map((t) => (t.taskId === taskId ? { ...t, status } : t));
+        this.cdr.markForCheck();
+      });
+  }
+
+  updateSubTask(subTaskId: string, status: TaskStatus): void {
     this.api
       .updateSubTaskStatus({ subTaskId, status })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -72,6 +84,7 @@ export class TaskBoardPage {
           ...t,
           subtasks: t.subtasks.map((s) => (s.subTaskId === subTaskId ? { ...s, status } : s))
         }));
+        this.cdr.markForCheck();
       });
   }
 }

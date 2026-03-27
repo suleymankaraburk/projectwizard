@@ -5,7 +5,7 @@ export interface ApiEnvelope<T> {
 }
 
 export type ProjectStatus = 'Draft' | 'InProgress' | 'Completed';
-export type TaskStatus = 'Todo' | 'InProgress' | 'Done';
+export type TaskStatus = 'Todo' | 'InProgress' | 'Completed';
 export type ActionType = 'OpenUrl' | 'ShowMappedData' | null;
 
 export interface EmissionCategoryMethodDto {
@@ -259,7 +259,7 @@ export interface RebuildTasksRequest {
 }
 
 export interface ProjectTaskDto {
-  taskId: number;
+  taskId: string;
   title: string;
   status: TaskStatus;
   actionType: ActionType;
@@ -268,30 +268,32 @@ export interface ProjectTaskDto {
 }
 
 export interface ProjectSubTaskDto {
-  subTaskId: number;
+  subTaskId: string;
   title: string;
   status: TaskStatus;
 }
 
 export interface UpdateTaskStatusRequest {
-  taskId: number;
-  status: TaskStatus;
+  projectId: string;
+  taskId: string;
+  status: string;
 }
 
 export interface UpdateSubTaskStatusRequest {
-  subTaskId: number;
+  subTaskId: string;
   status: TaskStatus;
 }
 
 export interface StepProgressDto {
+  stepId: string;
   stepTitle: string;
-  completed: number;
-  total: number;
+  completedTaskCount: number;
+  totalTaskCount: number;
+  estimatedDuration?: string | null;
 }
 
 export interface ProjectProgressDto {
+  projectId: string;
   completionPercent: number;
-  totalCompleted: number;
-  totalCount: number;
   steps: StepProgressDto[];
 }

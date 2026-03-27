@@ -16,7 +16,7 @@ import { SubtaskItemComponent } from '../subtask-item/subtask-item.component';
         <mat-button-toggle-group [value]="task.status" (change)="taskStatusChange.emit($any($event.value))">
           <mat-button-toggle value="Todo">Todo</mat-button-toggle>
           <mat-button-toggle value="InProgress">InProgress</mat-button-toggle>
-          <mat-button-toggle value="Done">Done</mat-button-toggle>
+          <mat-button-toggle value="Completed">Completed</mat-button-toggle>
         </mat-button-toggle-group>
 
         @if (task.actionType === 'OpenUrl' && task.actionPayload) {
@@ -38,7 +38,7 @@ import { SubtaskItemComponent } from '../subtask-item/subtask-item.component';
 export class TaskItemComponent {
   @Input({ required: true }) task!: ProjectTaskDto;
   @Output() readonly taskStatusChange = new EventEmitter<TaskStatus>();
-  @Output() readonly subTaskStatusChange = new EventEmitter<{ id: number; status: TaskStatus }>();
+  @Output() readonly subTaskStatusChange = new EventEmitter<{ id: string; status: TaskStatus }>();
 
   open(url: string): void {
     window.open(url, '_blank', 'noopener,noreferrer');

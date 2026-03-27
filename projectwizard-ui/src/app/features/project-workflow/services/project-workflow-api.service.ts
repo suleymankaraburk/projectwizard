@@ -255,8 +255,27 @@ export class ProjectWorkflowApiService {
     }
     const params = new HttpParams().set('projectId', projectId);
     return this.http
-      .get<ApiEnvelope<ProjectTaskDto[]>>(`${this.baseUrl}/GetProjectTasks`, { params })
-      .pipe(map((x) => x.data));
+      .get<unknown>(`${this.baseUrl}/GetProjectTasks`, { params })
+      .pipe(
+        map((res) => {
+          const raw = Array.isArray(res) ? res : (res as any)?.data;
+          const list = Array.isArray(raw) ? raw : Array.isArray((raw as any)?.items) ? (raw as any).items : [];
+          return list.map((t: any) => ({
+            taskId: String(t.taskId ?? t.id ?? ''),
+            title: t.title ?? t.name ?? '',
+            status: t.status,
+            actionType: t.actionType ?? null,
+            actionPayload: t.actionPayload ?? null,
+            subtasks: Array.isArray(t.subtasks)
+              ? t.subtasks.map((s: any) => ({
+                  subTaskId: String(s.subTaskId ?? s.id ?? ''),
+                  title: s.title ?? s.name ?? '',
+                  status: s.status
+                }))
+              : []
+          })) as ProjectTaskDto[];
+        })
+      );
   }
 
   updateTaskStatus(payload: UpdateTaskStatusRequest): Observable<boolean> {
@@ -273,8 +292,24 @@ export class ProjectWorkflowApiService {
     }
     const params = new HttpParams().set('projectId', projectId);
     return this.http
-      .get<ApiEnvelope<ProjectProgressDto>>(`${this.baseUrl}/GetProjectProgress`, { params })
-      .pipe(map((x) => x.data));
+      .get<unknown>(`${this.baseUrl}/GetProjectProgress`, { params })
+      .pipe(
+        map((res) => {
+          const data = (res as any)?.data ?? res;
+          const stepsRaw = Array.isArray(data?.steps) ? data.steps : [];
+          return {
+            projectId: String(data?.projectId ?? projectId),
+            completionPercent: Number(data?.completionPercent ?? 0),
+            steps: stepsRaw.map((s: any) => ({
+              stepId: String(s.stepId ?? s.id ?? ''),
+              stepTitle: String(s.stepTitle ?? s.title ?? ''),
+              completedTaskCount: Number(s.completedTaskCount ?? s.completed ?? 0),
+              totalTaskCount: Number(s.totalTaskCount ?? s.total ?? 0),
+              estimatedDuration: s.estimatedDuration ?? null
+            }))
+          } as ProjectProgressDto;
+        })
+      );
   }
 
   private postData<T>(path: string, payload: unknown, mockData: T): Observable<T> {
@@ -377,18 +412,18 @@ const MOCK_TEMPLATE = (templateId: string): TemplateDetailDto => ({
 
 const MOCK_TASKS: ProjectTaskDto[] = [
   {
-    taskId: 1,
+    taskId: '1',
     title: 'Proje kick-off toplantisi',
     status: 'InProgress',
     actionType: 'OpenUrl',
     actionPayload: 'https://meet.example.com',
     subtasks: [
-      { subTaskId: 101, title: 'Toplanti daveti gonder', status: 'Done' },
-      { subTaskId: 102, title: 'Ajanda hazirla', status: 'InProgress' }
+      { subTaskId: '101', title: 'Toplanti daveti gonder', status: 'Completed' },
+      { subTaskId: '102', title: 'Ajanda hazirla', status: 'InProgress' }
     ]
   },
   {
-    taskId: 2,
+    taskId: '2',
     title: 'Veri esitligi kontrolu',
     status: 'Todo',
     actionType: 'ShowMappedData',
@@ -398,13 +433,30 @@ const MOCK_TASKS: ProjectTaskDto[] = [
 ];
 
 const MOCK_PROGRESS: ProjectProgressDto = {
+  projectId: '42110c71-9ba8-4291-a052-827af590382c',
   completionPercent: 46,
-  totalCompleted: 11,
-  totalCount: 24,
   steps: [
-    { stepTitle: 'Kesif', completed: 4, total: 8 },
-    { stepTitle: 'Kurulum', completed: 5, total: 10 },
-    { stepTitle: 'Canliya Gecis', completed: 2, total: 6 }
+    {
+      stepId: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc',
+      stepTitle: 'Kesif',
+      completedTaskCount: 4,
+      totalTaskCount: 8,
+      estimatedDuration: '2 gun'
+    },
+    {
+      stepId: 'ac4f20f4-257f-4f41-8dc2-e66ff82e0b67',
+      stepTitle: 'Kurulum',
+      completedTaskCount: 5,
+      totalTaskCount: 10,
+      estimatedDuration: '4 gun'
+    },
+    {
+      stepId: 'b38be8bf-2f5c-4d69-9e6f-42aa01f55339',
+      stepTitle: 'Canliya Gecis',
+      completedTaskCount: 2,
+      totalTaskCount: 6,
+      estimatedDuration: '1 gun'
+    }
   ]
 };
 

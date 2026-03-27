@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { switchMap } from 'rxjs';
@@ -16,16 +16,16 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
       <app-progress-card
         [title]="'Genel Tamamlanma'"
         [percent]="progress.completionPercent"
-        [completed]="progress.totalCompleted"
-        [total]="progress.totalCount" />
+        [completed]="totalCompleted"
+        [total]="totalCount" />
 
       <div class="grid-2">
-        @for (step of progress.steps; track step.stepTitle) {
+        @for (step of progress.steps; track step.stepId) {
           <app-progress-card
-            [title]="step.stepTitle"
-            [percent]="step.total ? (step.completed / step.total) * 100 : 0"
-            [completed]="step.completed"
-            [total]="step.total" />
+            [title]="step.estimatedDuration ? step.stepTitle + ' (' + step.estimatedDuration + ')' : step.stepTitle"
+            [percent]="step.totalTaskCount ? (step.completedTaskCount / step.totalTaskCount) * 100 : 0"
+            [completed]="step.completedTaskCount"
+            [total]="step.totalTaskCount" />
         }
       </div>
     }
@@ -36,7 +36,16 @@ export class ProgressDashboardPage {
   private readonly api = inject(ProjectWorkflowApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
   progress: ProjectProgressDto | null = null;
+
+  get totalCompleted(): number {
+    return (this.progress?.steps ?? []).reduce((sum, s) => sum + (s.completedTaskCount || 0), 0);
+  }
+
+  get totalCount(): number {
+    return (this.progress?.steps ?? []).reduce((sum, s) => sum + (s.totalTaskCount || 0), 0);
+  }
 
   constructor() {
     this.route.paramMap
@@ -44,6 +53,9 @@ export class ProgressDashboardPage {
         switchMap((params) => this.api.getProjectProgress(String(params.get('projectId') ?? '').trim())),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe((x) => (this.progress = x));
+      .subscribe((x) => {
+        this.progress = x;
+        this.cdr.markForCheck();
+      });
   }
 }
