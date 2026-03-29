@@ -5,8 +5,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { forkJoin, of, switchMap } from 'rxjs';
+import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { environment } from '../../../../../environments/environment';
 import {
   AddTemplateQuestionRequest,
   AddTemplateQuestionOptionRequest,
@@ -17,11 +18,30 @@ import {
   UpdateTemplateQuestionRequestOption,
   ProjectWorkflowTemplateStepDto,
   ProjectWorkflowTemplateDto,
-  TemplateDetailDto
+  TemplateDetailDto,
+  TemplateQuestionOptionDto
 } from '../../../../core/models/project-workflow.models';
 import { QuestionFormComponent } from '../../components/question-form/question-form.component';
 import { StepCardComponent } from '../../components/step-card/step-card.component';
 import { ProjectWorkflowApiService } from '../../services/project-workflow-api.service';
+
+/** visibilityRuleJson içindeki benzersiz questionCode değerleri */
+function extractQuestionCodesFromVisibilityRule(json: string | null | undefined): string[] {
+  if (!json?.trim()) return [];
+  try {
+    const o = JSON.parse(json) as { conditions?: Array<{ questionCode?: string }> };
+    const conds = o?.conditions;
+    if (!Array.isArray(conds)) return [];
+    const codes = new Set<string>();
+    for (const c of conds) {
+      const qc = String(c?.questionCode ?? '').trim();
+      if (qc) codes.add(qc);
+    }
+    return Array.from(codes);
+  } catch {
+    return [];
+  }
+}
 
 @Component({
   selector: 'app-template-builder-page',
@@ -99,6 +119,7 @@ import { ProjectWorkflowApiService } from '../../services/project-workflow-api.s
           mode="template"
           [stepId]="selectedStepId"
           [question]="editingQuestion"
+          [templateAllQuestions]="allTemplateQuestions"
           [emissionCategoryMethods]="emissionCategoryMethods"
           [editMode]="editingQuestion !== null"
           (cancelTemplateEdit)="cancelEditing()"
@@ -143,6 +164,10 @@ export class TemplateBuilderPage {
   template: TemplateDetailDto | null = null;
   emissionCategoryMethods: EmissionCategoryMethodDto[] = [];
 
+  get allTemplateQuestions(): TemplateQuestionDto[] {
+    return (this.template?.steps ?? []).flatMap((s) => s.questions ?? []);
+  }
+
   readonly templateForm = this.fb.nonNullable.group({
     name: ['Standart', Validators.required]
   });
@@ -169,6 +194,7 @@ export class TemplateBuilderPage {
       .createTemplate(this.templateForm.getRawValue())
       .pipe(
         switchMap((id) => (this.templateId = id, this.api.getTemplateById(id))),
+        switchMap((x) => this.hydrateTemplateQuestionOptions(x)),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((x) => {
@@ -176,6 +202,7 @@ export class TemplateBuilderPage {
         this.templateId = x.templateId || x.id || this.templateId;
         this.loadTemplates(this.isActiveFilter);
         this.loadTemplateSteps(this.templateId);
+        this.cdr.markForCheck();
       });
   }
 
@@ -194,7 +221,9 @@ export class TemplateBuilderPage {
             switchMap((steps) => {
               this.templateSteps = steps;
               this.selectedStepId = createdStep.id || steps.at(-1)?.id || '';
-              return this.api.getTemplateById(templateId);
+              return this.api
+                .getTemplateById(templateId)
+                .pipe(switchMap((d) => this.hydrateTemplateQuestionOptions(d)));
             })
           )
         ),
@@ -203,6 +232,7 @@ export class TemplateBuilderPage {
       .subscribe((x) => {
         this.template = x;
         this.templateId = x.templateId || x.id || templateId;
+        this.cdr.markForCheck();
       });
   }
 
@@ -219,10 +249,14 @@ export class TemplateBuilderPage {
     this.templateId = selectedTemplateId;
     this.api
       .getTemplateById(selectedTemplateId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap((x) => this.hydrateTemplateQuestionOptions(x)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe((x) => {
         this.template = x;
         this.loadTemplateSteps(selectedTemplateId);
+        this.cdr.markForCheck();
       });
   }
 
@@ -243,6 +277,56 @@ export class TemplateBuilderPage {
           this.onTemplateChange(items[0].id);
         }
       });
+  }
+
+  /**
+   * GetTemplateById çoğu soruda options döndürmeyebilir; görünürlük kurallarında seçenek eşlemesi için
+   * tüm seçmeli soruların seçeneklerini GetTemplateQuestionOptions ile doldurur.
+   */
+  private hydrateTemplateQuestionOptions(detail: TemplateDetailDto): Observable<TemplateDetailDto> {
+    if (environment.useMockApi) {
+      return of(detail);
+    }
+
+    const steps = detail.steps ?? [];
+    const loads: Observable<{ key: string; options: TemplateQuestionOptionDto[] }>[] = [];
+
+    for (const step of steps) {
+      for (const q of step.questions ?? []) {
+        if (q.answerType === 'Text') continue;
+        if (Array.isArray(q.options) && q.options.length > 0) continue;
+        const tid = String(q.templateQuestionId ?? q.id ?? '').trim();
+        if (!tid) continue;
+        const mapKey = String(q.id ?? q.templateQuestionId ?? tid).trim();
+        loads.push(
+          this.api.getTemplateQuestionOptions(tid).pipe(
+            map((options) => ({ key: mapKey, options: options ?? [] }))
+          )
+        );
+      }
+    }
+
+    if (!loads.length) {
+      return of(detail);
+    }
+
+    return forkJoin(loads).pipe(
+      map((rows) => {
+        const byKey = new Map(rows.map((r) => [r.key, r.options]));
+        const newSteps = steps.map((step) => ({
+          ...step,
+          questions: (step.questions ?? []).map((q) => {
+            const k = String(q.id ?? q.templateQuestionId ?? '').trim();
+            const loaded = k ? byKey.get(k) : undefined;
+            if (loaded?.length) {
+              return { ...q, options: loaded };
+            }
+            return q;
+          })
+        }));
+        return { ...detail, steps: newSteps };
+      })
+    );
   }
 
   private loadTemplateSteps(templateId: string): void {
@@ -274,17 +358,86 @@ export class TemplateBuilderPage {
       options: []
     };
     this.cdr.markForCheck();
-    this.api
-      .getTemplateQuestionOptions(String(templateQuestionId))
+
+    const selfCode = (question.code ?? '').trim().toLowerCase();
+    const refCodes = extractQuestionCodesFromVisibilityRule(question.visibilityRuleJson).filter(
+      (c) => c.trim().toLowerCase() !== selfCode
+    );
+
+    const flat = (this.template?.steps ?? []).flatMap((s) => s.questions ?? []);
+    const depOptionLoads: Observable<{
+      mergeKey: string;
+      mergeCode: string;
+      options: TemplateQuestionOptionDto[];
+    }>[] = [];
+
+    for (const code of refCodes) {
+      const refQ = flat.find((q) => (q.code ?? '').trim() === code.trim());
+      if (!refQ || refQ.answerType === 'Text') continue;
+      const tid = String(refQ.templateQuestionId ?? refQ.id ?? '').trim();
+      if (!tid) continue;
+      const mergeKey = String(refQ.id ?? refQ.templateQuestionId ?? tid).trim();
+      const mergeCode = String(refQ.code ?? '').trim();
+      depOptionLoads.push(
+        this.api.getTemplateQuestionOptions(tid).pipe(
+          map((options) => ({
+            mergeKey,
+            mergeCode,
+            options: options ?? []
+          }))
+        )
+      );
+    }
+
+    const editing$ = this.api.getTemplateQuestionOptions(String(templateQuestionId));
+    const deps$ =
+      depOptionLoads.length > 0
+        ? forkJoin(depOptionLoads)
+        : of(
+            [] as Array<{
+              mergeKey: string;
+              mergeCode: string;
+              options: TemplateQuestionOptionDto[];
+            }>
+          );
+
+    forkJoin({ editing: editing$, deps: deps$ })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((options) => {
+      .subscribe(({ editing, deps }) => {
         if (this.currentEditingQuestionId !== question.id) return;
         this.editingQuestion = {
           ...question,
-          options
+          options: editing
         };
+        this.mergeQuestionsOptionsIntoTemplate(deps);
         this.cdr.markForCheck();
       });
+  }
+
+  /** Görünürlük kuralındaki bağımlı soruların seçeneklerini şablon ağacına yazar (id veya code ile eşleşir). */
+  private mergeQuestionsOptionsIntoTemplate(
+    updates: Array<{ mergeKey: string; mergeCode: string; options: TemplateQuestionOptionDto[] }>
+  ): void {
+    if (!this.template?.steps?.length || !updates.length) return;
+    const byId = new Map(updates.map((u) => [u.mergeKey, u.options]));
+    const byCode = new Map(
+      updates.filter((u) => u.mergeCode).map((u) => [u.mergeCode, u.options] as const)
+    );
+    this.template = {
+      ...this.template,
+      steps: this.template.steps.map((step) => ({
+        ...step,
+        questions: (step.questions ?? []).map((q) => {
+          const k = String(q.id ?? q.templateQuestionId ?? '').trim();
+          const c = String(q.code ?? '').trim();
+          const opts = byId.get(k) ?? (c ? byCode.get(c) : undefined);
+          if (opts && opts.length > 0) {
+            return { ...q, options: opts };
+          }
+          return q;
+        })
+      }))
+    };
   }
 
   upsertQuestion(event: {
@@ -336,6 +489,7 @@ export class TemplateBuilderPage {
           return optionCalls.length ? forkJoin(optionCalls) : of([]);
         }),
         switchMap(() => this.api.getTemplateById(templateId)),
+        switchMap((x) => this.hydrateTemplateQuestionOptions(x)),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((x) => {
@@ -343,6 +497,7 @@ export class TemplateBuilderPage {
         this.templateId = x.templateId || x.id || templateId;
         this.editingQuestion = null;
         this.currentEditingQuestionId = null;
+        this.cdr.markForCheck();
       });
   }
 
@@ -367,6 +522,7 @@ export class TemplateBuilderPage {
       answerType: event.request.answerType,
       isRequired: event.request.isRequired,
       order: event.request.order,
+      visibilityRuleJson: event.request.visibilityRuleJson ?? null,
       options:
         event.request.answerType === 'Text'
           ? []
@@ -383,12 +539,17 @@ export class TemplateBuilderPage {
 
     this.api
       .updateTemplateQuestion(updatePayload)
-      .pipe(switchMap(() => this.api.getTemplateById(templateId)), takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap(() => this.api.getTemplateById(templateId)),
+        switchMap((x) => this.hydrateTemplateQuestionOptions(x)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe((x) => {
         this.template = x;
         this.templateId = x.templateId || x.id || templateId;
         this.editingQuestion = null;
         this.currentEditingQuestionId = null;
+        this.cdr.markForCheck();
       });
   }
 }

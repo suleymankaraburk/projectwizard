@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, Input, Output, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  DestroyRef,
+  EventEmitter,
+  Input,
+  Output,
+  ViewChild,
+  inject
+} from '@angular/core';
 import {
   AbstractControl,
   FormArray,
@@ -23,6 +33,7 @@ import {
   TemplateQuestionOptionDto,
   UpdateTemplateQuestionRequestOption
 } from '../../../../core/models/project-workflow.models';
+import { VisibilityRuleEditorComponent } from '../visibility-rule-editor/visibility-rule-editor.component';
 
 @Component({
   selector: 'app-question-form',
@@ -33,7 +44,8 @@ import {
     MatInputModule,
     MatButtonModule,
     MatSelectModule,
-    MatCheckboxModule
+    MatCheckboxModule,
+    VisibilityRuleEditorComponent
   ],
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()" class="grid-2">
@@ -108,6 +120,14 @@ import {
         </div>
       }
 
+      @if (mode === 'template') {
+        <app-visibility-rule-editor
+          [templateQuestions]="templateAllQuestions"
+          [selfCode]="form.controls.code.value"
+          [visibilityRuleJson]="visibilityRuleJsonState"
+          (visibilityRuleJsonChange)="onVisibilityRuleJsonChange($event)" />
+      }
+
       @if (errorMessage) {
         <p class="error">{{ errorMessage }}</p>
       }
@@ -135,8 +155,12 @@ import {
 export class QuestionFormComponent {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  @ViewChild(VisibilityRuleEditorComponent) visibilityEditor?: VisibilityRuleEditorComponent;
 
   @Input() emissionCategoryMethods: EmissionCategoryMethodDto[] = [];
+  @Input() templateAllQuestions: TemplateQuestionDto[] = [];
 
   @Input() mode: 'project' | 'template' = 'project';
   @Input() stepId = '';
@@ -160,6 +184,8 @@ export class QuestionFormComponent {
       isRequired: value.isRequired,
       order: value.order
     });
+
+    this.visibilityRuleJsonState = value.visibilityRuleJson?.trim() ? value.visibilityRuleJson.trim() : null;
 
     this.options.clear();
     for (const option of value.options ?? []) {
@@ -193,7 +219,13 @@ export class QuestionFormComponent {
     options: this.fb.array([], [this.optionsValidator()])
   });
 
+  visibilityRuleJsonState: string | null = null;
+
   constructor() {
+    this.form.controls.code.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.cdr.markForCheck());
+
     this.form.controls.categoryCode.valueChanges
       .pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
       .subscribe((categoryCode) => {
@@ -231,6 +263,17 @@ export class QuestionFormComponent {
       return;
     }
 
+    const visErr = this.visibilityEditor?.validateForSubmit() ?? null;
+    if (visErr) {
+      this.errorMessage = visErr;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const visibilityRuleJsonForRequest =
+      this.visibilityEditor?.getSerializedRuleOrNull() ??
+      (this.visibilityRuleJsonState?.trim() ? this.visibilityRuleJsonState.trim() : null);
+
     const value = this.form.getRawValue();
     const rawOptions = value.options as Array<{
       id: string;
@@ -266,6 +309,7 @@ export class QuestionFormComponent {
       answerType: value.answerType,
       isRequired: value.isRequired,
       order: Number(value.order),
+      visibilityRuleJson: visibilityRuleJsonForRequest,
       options: optionsPayload.map((x) => ({
         templateQuestionId: x.templateQuestionId,
         code: x.code,
@@ -376,8 +420,14 @@ export class QuestionFormComponent {
     };
   }
 
+  onVisibilityRuleJsonChange(json: string | null): void {
+    this.visibilityRuleJsonState = json?.trim() ? json.trim() : null;
+    this.cdr.markForCheck();
+  }
+
   private resetForCreate(): void {
     this.questionInput = null;
+    this.visibilityRuleJsonState = null;
     this.form.reset({
       id: '',
       code: 'Q-001',

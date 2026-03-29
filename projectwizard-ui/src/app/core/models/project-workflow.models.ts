@@ -133,6 +133,7 @@ export interface AddTemplateQuestionRequest {
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
+  visibilityRuleJson?: string | null;
   options?: AddTemplateQuestionOptionRequest[];
 }
 
@@ -148,6 +149,7 @@ export interface TemplateQuestionDto {
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
+  visibilityRuleJson?: string | null;
   options: TemplateQuestionOptionDto[];
 }
 
@@ -218,6 +220,7 @@ export interface UpdateTemplateQuestionRequest {
   answerType: TemplateAnswerType;
   isRequired: boolean;
   order: number;
+  visibilityRuleJson?: string | null;
   options: UpdateTemplateQuestionRequestOption[];
 }
 

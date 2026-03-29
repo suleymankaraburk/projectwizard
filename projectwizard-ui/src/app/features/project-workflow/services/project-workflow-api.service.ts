@@ -25,8 +25,11 @@ import {
   RemoveProjectQuestionRequest,
   RebuildTasksRequest,
   SaveProjectAnswerRequest,
+  TemplateAnswerType,
   TemplateDetailDto,
+  TemplateQuestionDto,
   TemplateQuestionOptionDto,
+  TemplateStepDto,
   UpdateTemplateQuestionRequest,
   UpdateTemplateQuestionOptionRequest,
   UpdateSubTaskStatusRequest,
@@ -322,11 +325,184 @@ export class ProjectWorkflowApiService {
   }
 
   private normalizeTemplateDetail(data: TemplateDetailDto): TemplateDetailDto {
-    const resolvedId = data.templateId || data.id || '';
+    const d = data as unknown as Record<string, unknown>;
+    const resolvedId = String(
+      data.templateId ?? data.id ?? d['templateId'] ?? d['TemplateId'] ?? d['id'] ?? ''
+    );
+
+    const rawSteps = this.coerceArray(
+      d['steps'] ?? d['Steps'] ?? d['templateSteps'] ?? d['TemplateSteps']
+    );
+    let steps = rawSteps.map((s) => this.normalizeTemplateStep(s as Record<string, unknown>));
+
+    const rootQuestions = this.coerceArray(d['questions'] ?? d['Questions']);
+    if (rootQuestions.length) {
+      steps = this.mergeRootQuestionsIntoSteps(steps, rootQuestions);
+    }
+
+    if (!steps.length && rootQuestions.length) {
+      steps = this.stepsFromFlatQuestionsOnly(rootQuestions);
+    }
+
     return {
       ...data,
-      templateId: resolvedId
+      templateId: resolvedId,
+      steps
     };
+  }
+
+  private coerceArray(value: unknown): unknown[] {
+    return Array.isArray(value) ? value : [];
+  }
+
+  private normalizeTemplateStep(step: Record<string, unknown>): TemplateStepDto {
+    const id = String(
+      step['id'] ?? step['templateStepId'] ?? step['TemplateStepId'] ?? step['stepId'] ?? ''
+    );
+    const nested = this.coerceArray(step['questions'] ?? step['Questions']);
+    const questions = nested.map((q) => this.normalizeTemplateQuestion(q));
+
+    return {
+      id: id || String(step['templateStepId'] ?? step['TemplateStepId'] ?? ''),
+      templateStepId: (step['templateStepId'] ?? step['TemplateStepId'] ?? id) as string | undefined,
+      title: String(step['title'] ?? step['Title'] ?? ''),
+      order: Number(step['order'] ?? step['Order'] ?? 0),
+      questions
+    };
+  }
+
+  private normalizeTemplateQuestion(q: unknown): TemplateQuestionDto {
+    const row = q as Record<string, unknown> & {
+      VisibilityRuleJson?: string | null;
+      visibilityRuleJSON?: string | null;
+    };
+    const raw =
+      row['visibilityRuleJson'] ?? row['VisibilityRuleJson'] ?? row['visibilityRuleJSON'];
+    const visibilityRuleJson =
+      raw == null || raw === ''
+        ? null
+        : typeof raw === 'string'
+          ? raw
+          : JSON.stringify(raw);
+
+    const id = String(
+      row['id'] ?? row['templateQuestionId'] ?? row['TemplateQuestionId'] ?? row['questionId'] ?? ''
+    );
+    const code = String(row['code'] ?? row['Code'] ?? '');
+    const text = String(row['text'] ?? row['Text'] ?? '');
+    const answerType = (row['answerType'] ??
+      row['AnswerType'] ??
+      'Text') as TemplateAnswerType;
+    const optionsRaw = this.coerceArray(row['options'] ?? row['Options']);
+
+    return {
+      ...(row as unknown as TemplateQuestionDto),
+      id,
+      templateQuestionId: (row['templateQuestionId'] ?? row['TemplateQuestionId'] ?? id) as
+        | string
+        | null
+        | undefined,
+      code,
+      text,
+      description: (row['description'] ?? row['Description'] ?? null) as string | null,
+      url: (row['url'] ?? row['Url'] ?? null) as string | null,
+      categoryCode: (row['categoryCode'] ?? row['CategoryCode'] ?? null) as string | null,
+      methodCode: (row['methodCode'] ?? row['MethodCode'] ?? null) as string | null,
+      answerType,
+      isRequired: Boolean(row['isRequired'] ?? row['IsRequired'] ?? true),
+      order: Number(row['order'] ?? row['Order'] ?? 0),
+      visibilityRuleJson,
+      options: optionsRaw as TemplateQuestionDto['options']
+    };
+  }
+
+  private mergeRootQuestionsIntoSteps(
+    steps: TemplateStepDto[],
+    rootQuestions: unknown[]
+  ): TemplateStepDto[] {
+    const result = steps.map((st) => ({
+      ...st,
+      questions: [...(st.questions ?? [])]
+    }));
+
+    const findStep = (sid: string) =>
+      result.find(
+        (st) =>
+          (st.id && st.id === sid) ||
+          (st.templateStepId && st.templateStepId === sid) ||
+          String(st.templateStepId ?? '') === sid ||
+          String(st.id ?? '') === sid
+      );
+
+    for (const q of rootQuestions) {
+      const qNorm = this.normalizeTemplateQuestion(q);
+      if (!qNorm.id && !qNorm.code) continue;
+
+      const raw = q as Record<string, unknown>;
+      const sid = String(
+        raw['stepId'] ??
+          raw['templateStepId'] ??
+          raw['StepId'] ??
+          raw['TemplateStepId'] ??
+          ''
+      ).trim();
+
+      let st = sid ? findStep(sid) : undefined;
+      if (!st && result.length === 1) {
+        st = result[0];
+      }
+      // Kök listede stepId yoksa (veya eşleşmezse) sorular kaybolmasın diye ilk adıma düşür.
+      if (!st && result.length > 0 && !sid) {
+        st = result[0];
+      }
+      if (!st) continue;
+
+      const dup = st.questions.some((x) => x.id && qNorm.id && x.id === qNorm.id);
+      if (!dup) {
+        st.questions.push(qNorm);
+      }
+    }
+
+    for (const st of result) {
+      st.questions.sort((a, b) => a.order - b.order);
+    }
+    return result;
+  }
+
+  private stepsFromFlatQuestionsOnly(rootQuestions: unknown[]): TemplateStepDto[] {
+    type Pack = { order: number; title: string; questions: TemplateQuestionDto[] };
+    const byStep = new Map<string, Pack>();
+
+    for (const q of rootQuestions) {
+      const qNorm = this.normalizeTemplateQuestion(q);
+      const raw = q as Record<string, unknown>;
+      const sid = String(
+        raw['stepId'] ??
+          raw['templateStepId'] ??
+          raw['StepId'] ??
+          raw['TemplateStepId'] ??
+          'orphan'
+      ).trim() || 'orphan';
+
+      if (!byStep.has(sid)) {
+        byStep.set(sid, {
+          order: Number(raw['stepOrder'] ?? raw['StepOrder'] ?? 9999),
+          title: String(raw['stepTitle'] ?? raw['StepTitle'] ?? ''),
+          questions: []
+        });
+      }
+      byStep.get(sid)!.questions.push(qNorm);
+    }
+
+    return Array.from(byStep.entries())
+      .sort((a, b) => a[1].order - b[1].order)
+      .map(([stepId, pack]) => ({
+        id: stepId,
+        templateStepId: stepId,
+        title: pack.title,
+        order: pack.order,
+        questions: pack.questions.sort((a, b) => a.order - b.order)
+      }));
   }
 
 }
