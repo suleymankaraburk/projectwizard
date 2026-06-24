@@ -530,7 +530,7 @@ const MOCK_PROJECT_DETAIL = (id: string): ProjectDetailDto => ({
   name: `Proje ${id}`,
   status: 'InProgress',
   progress: 46,
-  steps: [{ id: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc', title: 'Kesif', order: 1 }],
+  steps: [{ id: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc', title: 'Step 1', order: 1 }],
   questions: [
     {
       id: '775f487f-f4ae-436e-bd72-00ef8fd83d98',
@@ -558,7 +558,7 @@ const MOCK_TEMPLATE = (templateId: string): TemplateDetailDto => ({
     {
       id: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc',
       templateStepId: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc',
-      title: 'Kesif',
+      title: 'Step 1',
       order: 1,
       questions: [
         {
@@ -614,7 +614,7 @@ const MOCK_PROGRESS: ProjectProgressDto = {
   steps: [
     {
       stepId: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc',
-      stepTitle: 'Kesif',
+      stepTitle: 'Step 1',
       completedTaskCount: 4,
       totalTaskCount: 8,
       estimatedDuration: '2 gun'
@@ -657,7 +657,7 @@ const MOCK_TEMPLATE_STEPS: ProjectWorkflowTemplateStepDto[] = [
   {
     id: 'fc406e86-27ba-4e4a-bdde-c6175f9a85bc',
     templateId: '246dbc46-fd4e-4fe0-9561-fb2d6704a73b',
-    title: 'Kesif',
+    title: 'Step 1',
     order: 1
   },
   {

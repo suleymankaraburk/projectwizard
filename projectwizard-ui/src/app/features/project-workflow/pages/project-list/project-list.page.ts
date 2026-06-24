@@ -50,10 +50,19 @@ const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
             <mat-label>Proje Adi</mat-label>
             <input matInput [(ngModel)]="newProjectName" />
           </mat-form-field>
+          <mat-form-field>
+            <mat-label>Type</mat-label>
+            <input matInput [(ngModel)]="createProjectType" />
+          </mat-form-field>
           <button
             mat-raised-button
             color="primary"
-            [disabled]="creating || !newProjectName.trim() || !isGuid(createCompanyId)"
+            [disabled]="
+              creating ||
+              !newProjectName.trim() ||
+              !createProjectType.trim() ||
+              !isGuid(createCompanyId)
+            "
             (click)="createProject()">
             Proje Ekle
           </button>
@@ -130,6 +139,7 @@ export class ProjectListPage {
   templates: ProjectWorkflowTemplateDto[] = [];
   newProjectName = '';
   createCompanyId = '11111111-1111-1111-1111-111111111111';
+  createProjectType = 'Default';
   templateIdByProjectId: Record<string, string> = {};
   defaultTemplateId = '';
 
@@ -181,14 +191,16 @@ export class ProjectListPage {
 
   createProject(): void {
     const name = this.newProjectName.trim();
-    if (!name || this.creating || !this.isGuid(this.createCompanyId)) return;
+    const type = this.createProjectType.trim();
+    if (!name || !type || this.creating || !this.isGuid(this.createCompanyId)) return;
 
     this.creating = true;
     this.cdr.markForCheck();
     this.api
       .createProject({
         companyId: this.createCompanyId.trim(),
-        name
+        name,
+        type
       })
       .pipe(
         switchMap(() => this.api.getProjects()),

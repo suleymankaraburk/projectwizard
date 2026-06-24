@@ -28,6 +28,7 @@ export interface ProjectSummaryDto {
 export interface CreateProjectRequest {
   companyId: string;
   name: string;
+  type: string;
 }
 
 export interface ProjectStepLiteDto {
@@ -84,6 +85,7 @@ export interface ProjectDetailDto {
 
 export interface CreateTemplateRequest {
   name: string;
+  type: string;
 }
 
 export interface CreateTemplateResultDto {

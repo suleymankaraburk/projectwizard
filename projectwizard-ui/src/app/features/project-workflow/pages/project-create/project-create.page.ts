@@ -34,6 +34,10 @@ const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
             <mat-label>Proje Adi</mat-label>
             <input matInput formControlName="name" />
           </mat-form-field>
+          <mat-form-field>
+            <mat-label>Type</mat-label>
+            <input matInput formControlName="type" />
+          </mat-form-field>
           <button mat-raised-button color="primary" [disabled]="form.invalid || loading">Kaydet</button>
         </form>
       </mat-card-content>
@@ -50,7 +54,8 @@ export class ProjectCreatePage {
 
   readonly form = this.fb.nonNullable.group({
     companyId: ['11111111-1111-1111-1111-111111111111', [Validators.required, Validators.pattern(GUID_PATTERN)]],
-    name: ['', [Validators.required, Validators.minLength(3)]]
+    name: ['', [Validators.required, Validators.minLength(3)]],
+    type: ['Default', [Validators.required]]
   });
 
   submit(): void {

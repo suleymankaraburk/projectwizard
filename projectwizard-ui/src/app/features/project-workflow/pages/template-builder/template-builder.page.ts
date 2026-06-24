@@ -92,6 +92,10 @@ function extractQuestionCodesFromVisibilityRule(json: string | null | undefined)
             <mat-label>Template Name</mat-label>
             <input matInput formControlName="name" />
           </mat-form-field>
+          <mat-form-field>
+            <mat-label>Type</mat-label>
+            <input matInput formControlName="type" />
+          </mat-form-field>
           <button mat-raised-button color="primary" type="submit">Template Olustur</button>
         </form>
       </mat-card-content>
@@ -169,10 +173,11 @@ export class TemplateBuilderPage {
   }
 
   readonly templateForm = this.fb.nonNullable.group({
-    name: ['Standart', Validators.required]
+    name: ['Standart Template', Validators.required],
+    type: ['Default', Validators.required]
   });
   readonly stepForm = this.fb.nonNullable.group({
-    title: ['Kesif', Validators.required]
+    title: ['Step 1', Validators.required]
   });
   constructor() {
     this.loadTemplates(this.isActiveFilter);
